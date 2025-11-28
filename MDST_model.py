@@ -5,12 +5,11 @@ import torch.utils.checkpoint as checkpoint
 from torch import Tensor
 from torch.nn.parameter import Parameter
 from torch.nn import init
-
+from single_model import convert_ln_to_dyt
 import math
-
 import numpy as np
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
-
+from 
 from mmcv.runner import BaseModule
 from checkpoint import load_checkpoint
 from mmcls.utils import get_root_logger
@@ -212,8 +211,8 @@ class SwinTransformerBlock(nn.Module):
         self.H = None
         self.W = None
 
-        self.my_module_1 = MDB(dim, 8)
-        self.my_module_2 = MDB(dim, 8) 
+        self.my_module_1 = convert_ln_to_dyt(MDB(dim, 8))
+        self.my_module_2 = convert_ln_to_dyt(MDB(dim, 8)) 
 
     def forward(self, x, mask_matrix):
 
