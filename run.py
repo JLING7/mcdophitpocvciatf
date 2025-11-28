@@ -224,7 +224,7 @@ for epoch in range(num_epochs):
     
     if val_accuracy > best_acc:
         best_acc = val_accuracy
-        torch.save(model.state_dict(), "weight/MDST_EfficientNet_11_28best_acc.pth") 
+        torch.save(model.state_dict(), "weight.pth") 
         counter = 0
     else:
         counter += 1
@@ -233,7 +233,7 @@ for epoch in range(num_epochs):
             print("Early stopping triggered!")
             break
 
-model.load_state_dict(torch.load("weight/MDST_EfficientNet_11_28best_acc.pth"))
+model.load_state_dict(torch.load("weight.pth"))
 model.eval()
 test_loss = 0.0
 all_test_labels = []
