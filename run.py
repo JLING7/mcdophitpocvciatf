@@ -14,11 +14,13 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, confusion_matrix
 from torchvision import models, transforms
 from PIL import Image
+from PIL import ImageDraw
 from skimage.transform import resize
 from scipy.ndimage import gaussian_filter
 import timm
 from fvcore.nn import FlopCountAnalysis, parameter_count_table
 from single_model import convert_ln_to_dyt, MDST_EfficientNet
+import cv2
 
 
 seed = 42
@@ -28,6 +30,55 @@ torch.manual_seed(seed)
 torch.cuda.manual_seed_all(seed)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
+
+
+class MinCenterCircleMask:
+    def __init__(self, scale=1.0):
+        self.scale = scale
+
+    def __call__(self, img):
+        if isinstance(img, Image.Image):
+            img = np.array(img)
+
+        if len(img.shape) == 2:
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+        elif img.shape[2] == 1:
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        gray_eq = cv2.equalizeHist(gray)
+        _, binary = cv2.threshold(gray_eq, 50, 255, cv2.THRESH_BINARY)
+
+        kernel = np.ones((5, 5), np.uint8)
+        closed = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
+        contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        if not contours:
+            return Image.fromarray(img)  
+
+        largest = max(contours, key=cv2.contourArea)
+        M = cv2.moments(largest)
+        if M["m00"] == 0:
+            return Image.fromarray(img)  
+
+        cx, cy = int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"])
+
+        min_dist = float('inf')
+        for pt in largest:
+            x, y = pt[0]
+            dist = np.sqrt((x - cx) ** 2 + (y - cy) ** 2)
+            if dist < min_dist:
+                min_dist = dist
+
+        final_radius = int(min_dist * self.scale)
+
+        mask = np.zeros(gray.shape, dtype=np.uint8)
+        cv2.circle(mask, (cx, cy), final_radius, 255, -1)
+        masked_img = cv2.bitwise_and(img, img, mask=mask)
+
+        return Image.fromarray(masked_img)
+
+
 
 def analyze_model_performance(model, input_size=(1, 3, 512, 512), device='cuda', warmup=10, runs=100):
     device = torch.device(device if torch.cuda.is_available() else 'cpu')
