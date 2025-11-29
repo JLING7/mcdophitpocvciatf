@@ -32,7 +32,7 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
 
-class MinCenterCircleMask:
+class PARM:
     def __init__(self, scale=1.0):
         self.scale = scale
 
